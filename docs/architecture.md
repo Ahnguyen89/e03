@@ -103,16 +103,16 @@ Kiến trúc được chọn là:
 
 ### 2.1 Danh sách thành phần triển khai
 
-| Thành phần            | Trách nhiệm                                                                                                            | Công nghệ dự kiến                             | Port                                 |
+| Thành phần            | Trách nhiệm                                                                                                            | Công nghệ sử dụng                             | Port                                 |
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------ |
-| **Frontend**          | Giao diện cho sinh viên và admin: tra cứu phòng, gửi booking, xem trạng thái, phê duyệt / từ chối / hủy                | Web frontend chạy trong Docker                | 3000                                 |
-| **Gateway**           | Điểm vào duy nhất của hệ thống; route request từ frontend đến các backend service                                      | API Gateway / reverse proxy chạy trong Docker | 8080 bên ngoài, 8000 trong container |
-| **Room Service**      | Quản lý thông tin phòng học: mã phòng, tên phòng, sức chứa, trạng thái hoạt động, thông tin mô tả phòng                | Backend service chạy trong Docker             | 5001 bên ngoài, 5000 trong container |
-| **Schedule Service**  | Quản lý availability, reserve slot, release slot, chống trùng lịch ở mức tài nguyên thời gian                          | Backend service chạy trong Docker             | 5002 bên ngoài, 5000 trong container |
-| **Booking Service**   | Quản lý yêu cầu booking, trạng thái booking, phê duyệt / từ chối / hủy, điều phối với room-service và schedule-service | Backend service chạy trong Docker             | 5003 bên ngoài, 5000 trong container |
-| **Room Database**     | Lưu dữ liệu phòng do room-service sở hữu                                                                               | PostgreSQL hoặc DB quan hệ tương đương        | 5432 nội bộ                          |
-| **Schedule Database** | Lưu reservation / slot / availability do schedule-service sở hữu                                                       | PostgreSQL hoặc DB quan hệ tương đương        | 5432 nội bộ                          |
-| **Booking Database**  | Lưu booking request, trạng thái, quyết định xử lý do booking-service sở hữu                                            | PostgreSQL hoặc DB quan hệ tương đương        | 5432 nội bộ                          |
+| **Frontend**          | Giao diện cho sinh viên và admin: tra cứu phòng, gửi booking, xem trạng thái, phê duyệt / từ chối / hủy                | HTML, CSS, JavaScript thuần, Bootstrap; chạy file tĩnh bằng BusyBox httpd | 3000                                 |
+| **Gateway**           | Điểm vào duy nhất của hệ thống; route request từ frontend đến các backend service                                      | Nginx Reverse Proxy                           | 8080 bên ngoài, 8000 trong container |
+| **Room Service**      | Quản lý thông tin phòng học: mã phòng, tên phòng, sức chứa, trạng thái hoạt động, thông tin mô tả phòng                | Node.js 20 LTS, TypeScript, Express, pg       | 5001 bên ngoài, 5000 trong container |
+| **Schedule Service**  | Quản lý availability, reserve slot, release slot, chống trùng lịch ở mức tài nguyên thời gian                          | Node.js 20 LTS, TypeScript, Express, pg       | 5002 bên ngoài, 5000 trong container |
+| **Booking Service**   | Quản lý yêu cầu booking, trạng thái booking, phê duyệt / từ chối / hủy, điều phối với room-service và schedule-service | Node.js 20 LTS, TypeScript, Express, pg       | 5003 bên ngoài, 5000 trong container |
+| **Room Database**     | Lưu dữ liệu phòng do room-service sở hữu                                                                               | PostgreSQL 16 Alpine                          | 5432 nội bộ, 5433 bên ngoài          |
+| **Schedule Database** | Lưu reservation / slot / availability do schedule-service sở hữu                                                       | PostgreSQL 16 Alpine                          | 5432 nội bộ, 5434 bên ngoài          |
+| **Booking Database**  | Lưu booking request, trạng thái, quyết định xử lý do booking-service sở hữu                                            | PostgreSQL 16 Alpine                          | 5432 nội bộ, 5435 bên ngoài          |
 
 ### 2.2 Vai trò của 3 service nghiệp vụ
 
@@ -273,11 +273,11 @@ C4Container
     Person(admin, "Quản trị viên")
 
     Container_Boundary(sys, "Hệ thống Cho thuê Phòng học") {
-        Container(fe, "Frontend", "Web UI chạy trong Docker", "Hiển thị giao diện tra cứu phòng, tạo booking, xem trạng thái và thao tác admin. Port 3000")
-        Container(gw, "Gateway", "API Gateway / Reverse Proxy", "Điểm vào duy nhất của hệ thống. Route request đến các backend service. Port 8080 bên ngoài, 8000 trong container")
-        Container(room, "Room Service", "Backend Service", "Quản lý dữ liệu phòng và GET /health. Port 5001 bên ngoài, 5000 trong container")
-        Container(schedule, "Schedule Service", "Backend Service", "Quản lý availability, reserve, release và GET /health. Port 5002 bên ngoài, 5000 trong container")
-        Container(booking, "Booking Service", "Backend Service", "Quản lý vòng đời booking và GET /health. Port 5003 bên ngoài, 5000 trong container")
+        Container(fe, "Frontend", "HTML/CSS/JavaScript, Bootstrap, BusyBox httpd", "Hiển thị giao diện tra cứu phòng, tạo booking, xem trạng thái và thao tác admin. Port 3000")
+        Container(gw, "Gateway", "Nginx Reverse Proxy", "Điểm vào duy nhất của hệ thống. Route request đến các backend service. Port 8080 bên ngoài, 8000 trong container")
+        Container(room, "Room Service", "Node.js, TypeScript, Express, pg", "Quản lý dữ liệu phòng và GET /health. Port 5001 bên ngoài, 5000 trong container")
+        Container(schedule, "Schedule Service", "Node.js, TypeScript, Express, pg", "Quản lý availability, reserve, release và GET /health. Port 5002 bên ngoài, 5000 trong container")
+        Container(booking, "Booking Service", "Node.js, TypeScript, Express, pg", "Quản lý vòng đời booking và GET /health. Port 5003 bên ngoài, 5000 trong container")
         ContainerDb(roomdb, "Room Database", "PostgreSQL", "Lưu dữ liệu phòng do Room Service sở hữu")
         ContainerDb(scheduledb, "Schedule Database", "PostgreSQL", "Lưu reservation/slot do Schedule Service sở hữu")
         ContainerDb(bookingdb, "Booking Database", "PostgreSQL", "Lưu booking request và trạng thái do Booking Service sở hữu")

@@ -1,52 +1,94 @@
 # API Gateway
 
-## Current Status
+## Overview
 
-Gateway da duoc hoan thien o muc toi thieu de lam single entry point cho frontend.
-Gateway khong chua business logic, chi dinh tuyen va proxy request den 3 backend
-services:
+API Gateway là điểm vào duy nhất cho mọi request từ frontend. Gateway nhận request từ client, xử lý CORS, bỏ prefix `/api` khi cần và định tuyến request đến đúng backend microservice.
+
+Gateway trong dự án này được triển khai bằng Nginx Reverse Proxy và không chứa business logic.
+
+## Responsibilities
+
+- **Request routing**: chuyển request đến đúng service nghiệp vụ.
+- **CORS handling**: cho phép frontend gọi API qua gateway.
+- **Path transformation**: bỏ prefix `/api` trước khi forward request vào backend service.
+- **Reverse proxy headers**: thêm các header như `X-Real-IP`, `X-Forwarded-For`, `X-Forwarded-Proto`.
+- **Health check**: cung cấp `GET /health` để kiểm tra gateway đang hoạt động.
+
+Các trách nhiệm chưa triển khai trong phạm vi bài này:
+
+- **Load balancing**: chưa cần vì mỗi service chỉ có một container.
+- **Authentication**: chưa triển khai xác thực token/credential.
+- **Rate limiting**: chưa triển khai giới hạn số request.
+- **Request/Response transformation nâng cao**: chưa thay đổi body response/request, chỉ xử lý path và header proxy cơ bản.
+
+## Tech Stack
+
+| Component | Choice |
+|-----------|--------|
+| Approach | Nginx Reverse Proxy |
+| Runtime image | `nginx:1.27-alpine` |
+| Protocol | HTTP/REST |
+| Service discovery | Docker Compose DNS / service names |
+| Configuration file | `gateway/nginx.conf` |
+
+## Routing Table
+
+| External Path | Target Service | Internal URL |
+|---------------|----------------|--------------|
+| `/health` | Gateway | Trả trực tiếp `{"status":"ok"}` |
+| `/api/rooms/*` | `room-service` | `http://room-service:5000/rooms/*` |
+| `/api/schedules/*` | `schedule-service` | `http://schedule-service:5000/schedules/*` |
+| `/api/bookings/*` | `booking-service` | `http://booking-service:5000/bookings/*` |
+
+Ví dụ:
+
+| Client Request | Forwarded Request |
+|----------------|-------------------|
+| `GET /api/rooms` | `GET http://room-service:5000/rooms` |
+| `GET /api/schedules/availability` | `GET http://schedule-service:5000/schedules/availability` |
+| `POST /api/bookings` | `POST http://booking-service:5000/bookings` |
+| `POST /api/bookings/{bookingId}/decision` | `POST http://booking-service:5000/bookings/{bookingId}/decision` |
+
+## Running
+
+```bash
+# From project root
+docker compose up gateway --build
+```
+
+Chạy toàn bộ hệ thống:
+
+```bash
+docker compose up --build
+```
+
+Kiểm tra gateway:
+
+```bash
+curl http://localhost:8080/health
+curl http://localhost:8080/api/rooms
+```
+
+## Configuration
+
+Gateway sử dụng Docker Compose networking. Các backend service được truy cập bằng service names được định nghĩa trong `docker-compose.yml`:
 
 - `room-service`
 - `schedule-service`
 - `booking-service`
 
-## Implemented Endpoints
+Trong `gateway/nginx.conf`, gateway dùng Docker DNS resolver:
 
-- `GET /health`
-- `/api/rooms...` -> `room-service`
-- `/api/schedules...` -> `schedule-service`
-- `/api/bookings...` -> `booking-service`
-
-## Routing Rules
-
-- Public routes luon di qua gateway voi prefix `/api`
-- Gateway se bo prefix `/api` truoc khi forward vao backend
-- Upstream duoc cau hinh bang environment variables:
-  - `ROOM_SERVICE_URL`
-  - `SCHEDULE_SERVICE_URL`
-  - `BOOKING_SERVICE_URL`
-
-Vi du:
-
-- `GET /api/rooms` -> `GET /rooms`
-- `GET /api/schedules/availability` -> `GET /schedules/availability`
-- `POST /api/bookings` -> `POST /bookings`
-
-## Tech Stack
-
-- Node.js 20 LTS
-- TypeScript
-- Express
-
-## Run
-
-```bash
-docker compose up gateway --build
+```nginx
+resolver 127.0.0.11 valid=10s ipv6=off;
 ```
+
+Cách này giúp Nginx resolve upstream service name trong Docker network và tránh phụ thuộc vào `localhost`.
 
 ## Notes
 
-- Gateway nghe tren container port `8000`
-- Docker Compose map ra host port `8080`
-- Frontend ve sau chi duoc goi gateway, khong goi truc tiep backend services
-- Gateway goi upstream bang Docker Compose service names, khong dung `localhost`
+- Gateway expose port `8080` ra host và listen port `8000` bên trong container.
+- Frontend chỉ gọi gateway, không gọi trực tiếp các backend service.
+- Gateway gọi upstream bằng Docker Compose service names, không dùng `localhost`.
+- Gateway không truy cập database.
+- Gateway không được tính là service nghiệp vụ.

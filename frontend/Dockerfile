@@ -1,9 +1,9 @@
-FROM nginx:1.27-alpine
+FROM busybox:1.36
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY src /usr/share/nginx/html
-COPY docker-entrypoint.d/40-env-config.sh /docker-entrypoint.d/40-env-config.sh
+WORKDIR /www
 
-RUN chmod +x /docker-entrypoint.d/40-env-config.sh
+COPY src ./
 
 EXPOSE 3000
+
+CMD ["httpd", "-f", "-p", "3000", "-h", "/www"]

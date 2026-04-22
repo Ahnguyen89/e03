@@ -18,7 +18,7 @@ import {
 import { Booking } from "../models/booking";
 import { bookingRepository } from "../repositories/bookingRepository";
 
-export function listBookingsHandler(req: Request, res: Response): void {
+export async function listBookingsHandler(req: Request, res: Response): Promise<void> {
   const validation = validateListBookingsQuery(req);
 
   if (!validation.ok) {
@@ -26,19 +26,19 @@ export function listBookingsHandler(req: Request, res: Response): void {
     return;
   }
 
-  const items = bookingRepository.list(validation.value);
+  const items = await bookingRepository.list(validation.value);
   res.status(200).json({ items, total: items.length });
 }
 
-export function getBookingByIdHandler(req: Request, res: Response): void {
-  const validation = validateBookingId(req.params.bookingId);
+export async function getBookingByIdHandler(req: Request, res: Response): Promise<void> {
+  const validation = validateBookingId(String(req.params.bookingId));
 
   if (!validation.ok) {
     sendError(res, 400, validation.code, validation.message);
     return;
   }
 
-  const booking = bookingRepository.findById(validation.value);
+  const booking = await bookingRepository.findById(validation.value);
 
   if (!booking) {
     sendError(res, 404, "BOOKING_NOT_FOUND", "Booking not found", {
@@ -92,7 +92,7 @@ export async function createBookingHandler(req: Request, res: Response): Promise
       return;
     }
 
-    const booking = bookingRepository.create(randomUUID(), validation.value);
+    const booking = await bookingRepository.create(randomUUID(), validation.value);
     res.status(201).json(booking);
   } catch (error) {
     sendError(res, 502, "DEPENDENCY_ERROR", "Failed to validate booking against dependent services", {
@@ -102,7 +102,7 @@ export async function createBookingHandler(req: Request, res: Response): Promise
 }
 
 export async function decideBookingHandler(req: Request, res: Response): Promise<void> {
-  const bookingIdValidation = validateBookingId(req.params.bookingId);
+  const bookingIdValidation = validateBookingId(String(req.params.bookingId));
   if (!bookingIdValidation.ok) {
     sendError(res, 400, bookingIdValidation.code, bookingIdValidation.message);
     return;
@@ -114,7 +114,7 @@ export async function decideBookingHandler(req: Request, res: Response): Promise
     return;
   }
 
-  const booking = bookingRepository.findById(bookingIdValidation.value);
+  const booking = await bookingRepository.findById(bookingIdValidation.value);
   if (!booking) {
     sendError(res, 404, "BOOKING_NOT_FOUND", "Booking not found", {
       bookingId: bookingIdValidation.value
@@ -140,8 +140,8 @@ export async function decideBookingHandler(req: Request, res: Response): Promise
       updatedAt: new Date().toISOString()
     };
 
-    bookingRepository.save(updated);
-    res.status(200).json(updated);
+    const saved = await bookingRepository.save(updated);
+    res.status(200).json(saved);
     return;
   }
 
@@ -164,8 +164,8 @@ export async function decideBookingHandler(req: Request, res: Response): Promise
       updatedAt: new Date().toISOString()
     };
 
-    bookingRepository.save(updated);
-    res.status(200).json(updated);
+    const saved = await bookingRepository.save(updated);
+    res.status(200).json(saved);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown reservation error";
 
@@ -181,7 +181,7 @@ export async function decideBookingHandler(req: Request, res: Response): Promise
 }
 
 export async function cancelBookingHandler(req: Request, res: Response): Promise<void> {
-  const bookingIdValidation = validateBookingId(req.params.bookingId);
+  const bookingIdValidation = validateBookingId(String(req.params.bookingId));
   if (!bookingIdValidation.ok) {
     sendError(res, 400, bookingIdValidation.code, bookingIdValidation.message);
     return;
@@ -199,7 +199,7 @@ export async function cancelBookingHandler(req: Request, res: Response): Promise
     return;
   }
 
-  const booking = bookingRepository.findById(bookingIdValidation.value);
+  const booking = await bookingRepository.findById(bookingIdValidation.value);
   if (!booking) {
     sendError(res, 404, "BOOKING_NOT_FOUND", "Booking not found", {
       bookingId: bookingIdValidation.value
@@ -262,6 +262,6 @@ export async function cancelBookingHandler(req: Request, res: Response): Promise
     updatedAt: new Date().toISOString()
   };
 
-  bookingRepository.save(updated);
-  res.status(200).json(updated);
+  const saved = await bookingRepository.save(updated);
+  res.status(200).json(saved);
 }

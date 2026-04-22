@@ -1,65 +1,82 @@
 # Schedule Service
 
-## Current Status
+## Tổng quan
 
-This service implements the schedule boundary of the project.
+`schedule-service` phụ trách miền nghiệp vụ lịch sử dụng phòng và reservation.
 
-Implemented endpoints:
+- Miền nghiệp vụ: quản lý khả dụng của phòng và giữ chỗ theo khung thời gian.
+- Dữ liệu sở hữu: mã reservation, mã booking, mã phòng, ngày, giờ bắt đầu, giờ kết thúc, trạng thái reservation và thời điểm tạo.
+- Thao tác cung cấp: kiểm tra phòng còn trống hay không, giữ slot cho booking đã duyệt và giải phóng slot đã giữ.
 
-- `GET /health`
-- `GET /schedules/availability`
-- `POST /schedules/reservations`
-- `DELETE /schedules/reservations/{reservationId}`
+Service này không sở hữu dữ liệu phòng gốc và không quyết định vòng đời booking. Service này chỉ là nguồn sự thật cho dữ liệu slot đã giữ hoặc đã giải phóng.
 
-The current implementation uses an in-memory reservation repository so the
-service is easy to run and demo inside Docker. The structure is ready to move
-to `schedule-db` in a later step.
+## Công nghệ sử dụng
 
-## Boundary
+| Thành phần | Lựa chọn |
+|------------|----------|
+| Ngôn ngữ | Node.js 20 LTS, TypeScript |
+| Framework | Express |
+| Cơ sở dữ liệu | PostgreSQL (`schedule-db`) |
+| Driver cơ sở dữ liệu | pg |
+| Container | Docker |
 
-`schedule-service` owns:
+## API Endpoints
 
-- availability checks by `roomId + date + time range`
-- reservation overlap prevention
-- reserve slot
-- release slot
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/health` | Kiểm tra trạng thái service |
+| GET | `/schedules/availability` | Kiểm tra phòng còn trống theo ngày và khung giờ |
+| POST | `/schedules/reservations` | Giữ slot phòng cho booking đã được duyệt |
+| DELETE | `/schedules/reservations/{reservationId}` | Giải phóng slot đã giữ |
 
-It does **not** own:
+Đặc tả API đầy đủ: [`docs/api-specs/schedule-service.yaml`](../../docs/api-specs/schedule-service.yaml)
 
-- room metadata as the source of truth
-- booking lifecycle decisions
-
-## Tech Stack
-
-- Node.js 20 LTS
-- TypeScript
-- Express
-
-## Run
+## Chạy cục bộ
 
 ```bash
+# Chạy từ thư mục gốc project
 docker compose up schedule-service --build
+
+# Gọi trực tiếp service qua host
+curl http://localhost:5002/health
+curl "http://localhost:5002/schedules/availability?roomId=ROOM-A101&date=2026-05-01&startTime=09:00&endTime=10:00"
+
+# Gọi thông qua gateway
+curl "http://localhost:8080/api/schedules/availability?roomId=ROOM-A101&date=2026-05-01&startTime=09:00&endTime=10:00"
 ```
 
-## Host Access
+## Cấu trúc thư mục
 
-- Health: `http://localhost:5002/health`
-- Availability: `http://localhost:5002/schedules/availability`
-- Reserve: `http://localhost:5002/schedules/reservations`
+```text
+schedule-service/
+├── Dockerfile
+├── package.json
+├── readme.md
+├── tsconfig.json
+└── src/
+    ├── http/
+    ├── models/
+    ├── repositories/
+    ├── routes/
+    ├── db.ts
+    └── index.ts
+```
 
-## Conflict Rule
+## Biến môi trường
 
-Two reservations conflict when:
+| Biến | Mô tả | Mặc định |
+|------|-------|----------|
+| `PORT` | Port của service bên trong container | `5000` |
+| `NODE_ENV` | Môi trường chạy ứng dụng | `development` |
+| `SCHEDULE_SERVICE_DB_URL` | Chuỗi kết nối PostgreSQL do schedule-service sở hữu | `postgresql://schedule_user:schedule_pass@schedule-db:5432/schedule_db` |
+| `SCHEDULE_DB_HOST` | Hostname của database lịch trong Docker Compose | `schedule-db` |
+| `SCHEDULE_DB_PORT` | Port database lịch trong Docker network | `5432` |
 
-- they belong to the same `roomId`
-- they are on the same `date`
-- both are still in `RESERVED` state
-- and their time ranges overlap using:
-  - `existing.startTime < new.endTime`
-  - `new.startTime < existing.endTime`
+## Quy tắc chống trùng lịch
 
-## Notes
+Hai reservation bị xem là trùng lịch khi cùng `roomId`, cùng `date`, đều đang ở trạng thái `RESERVED` và khoảng thời gian giao nhau:
 
-- Container port: `5000`
-- Host port: `5002`
-- Future database ownership: `schedule-db`
+```text
+existing.startTime < new.endTime
+new.startTime < existing.endTime
+```

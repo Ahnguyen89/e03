@@ -1,59 +1,79 @@
 # Room Service
 
-## Current Status
+## Tổng quan
 
-This service now implements the room metadata boundary of the project.
+`room-service` phụ trách miền nghiệp vụ quản lý thông tin phòng học trong hệ thống đặt phòng.
 
-Implemented endpoints:
+- Miền nghiệp vụ: quản lý thông tin phòng học.
+- Dữ liệu sở hữu: mã định danh phòng, mã phòng, tên phòng, tòa nhà, tầng, sức chứa, trạng thái, thiết bị và mô tả.
+- Thao tác cung cấp: xem danh sách phòng, xem chi tiết phòng, tạo phòng, cập nhật phòng và xác nhận phòng có tồn tại/đang hoạt động hay không.
 
-- `GET /health`
-- `GET /rooms`
-- `GET /rooms/{roomId}`
-- `POST /rooms`
-- `PUT /rooms/{roomId}`
+Service này không quản lý vòng đời booking, kiểm tra lịch trống, giữ chỗ hoặc giải phóng slot. Các trách nhiệm đó thuộc về `booking-service` và `schedule-service`.
 
-The current implementation uses an in-memory repository with seed data so the
-service is easy to run and demo inside Docker. The code is structured so it can
-be replaced with `room-db` persistence in a later step.
+## Công nghệ sử dụng
 
-## Boundary
+| Thành phần | Lựa chọn |
+|------------|----------|
+| Ngôn ngữ | Node.js 20 LTS, TypeScript |
+| Framework | Express |
+| Cơ sở dữ liệu | PostgreSQL (`room-db`) |
+| Driver cơ sở dữ liệu | pg |
+| Container | Docker |
 
-`room-service` only owns room metadata:
+## API Endpoints
 
-- room list
-- room details
-- room creation/update
-- validating that a room exists and whether it is active
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| GET | `/health` | Kiểm tra trạng thái service |
+| GET | `/rooms` | Lấy danh sách phòng, có hỗ trợ bộ lọc |
+| GET | `/rooms/{roomId}` | Lấy chi tiết một phòng |
+| POST | `/rooms` | Tạo phòng mới |
+| PUT | `/rooms/{roomId}` | Cập nhật thông tin phòng |
 
-It does **not** own:
+Đặc tả API đầy đủ: [`docs/api-specs/room-service.yaml`](../../docs/api-specs/room-service.yaml)
 
-- availability checks
-- slot reservation
-- slot release
-- booking lifecycle
-
-Those responsibilities belong to `schedule-service` and `booking-service`.
-
-## Tech Stack
-
-- Node.js 20 LTS
-- TypeScript
-- Express
-
-## Run
+## Chạy cục bộ
 
 ```bash
+# Chạy từ thư mục gốc project
 docker compose up room-service --build
+
+# Gọi trực tiếp service qua host
+curl http://localhost:5001/health
+curl http://localhost:5001/rooms
+
+# Gọi thông qua gateway
+curl http://localhost:8080/api/rooms
 ```
 
-## Host Access
+## Cấu trúc thư mục
 
-- Health: `http://localhost:5001/health`
-- List rooms: `http://localhost:5001/rooms`
-- Room detail: `http://localhost:5001/rooms/{roomId}`
+```text
+room-service/
+├── Dockerfile
+├── package.json
+├── readme.md
+├── tsconfig.json
+└── src/
+    ├── data/
+    ├── http/
+    ├── models/
+    ├── repositories/
+    ├── routes/
+    ├── db.ts
+    └── index.ts
+```
 
-## Notes
+## Biến môi trường
 
-- Container port: `5000`
-- Host port: `5001`
-- Future database ownership: `room-db`
+| Biến | Mô tả | Mặc định |
+|------|-------|----------|
+| `PORT` | Port của service bên trong container | `5000` |
+| `NODE_ENV` | Môi trường chạy ứng dụng | `development` |
+| `ROOM_SERVICE_DB_URL` | Chuỗi kết nối PostgreSQL do room-service sở hữu | `postgresql://room_user:room_pass@room-db:5432/room_db` |
+| `ROOM_DB_HOST` | Hostname của database phòng trong Docker Compose | `room-db` |
+| `ROOM_DB_PORT` | Port database phòng trong Docker network | `5432` |
+
+## Cơ sở dữ liệu
+
+Khi khởi động, service tự tạo bảng `rooms` nếu chưa tồn tại và thêm dữ liệu phòng mẫu nếu các `roomId` mẫu chưa có trong database.

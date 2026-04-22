@@ -8,7 +8,7 @@ import {
 } from "../http/validation";
 import { reservationRepository } from "../repositories/reservationRepository";
 
-export function checkAvailabilityHandler(req: Request, res: Response): void {
+export async function checkAvailabilityHandler(req: Request, res: Response): Promise<void> {
   const validation = validateAvailabilityQuery(req);
 
   if (!validation.ok) {
@@ -16,7 +16,7 @@ export function checkAvailabilityHandler(req: Request, res: Response): void {
     return;
   }
 
-  const conflict = reservationRepository.hasConflict(validation.value);
+  const conflict = await reservationRepository.hasConflict(validation.value);
 
   res.status(200).json({
     roomId: validation.value.roomId,
@@ -28,7 +28,7 @@ export function checkAvailabilityHandler(req: Request, res: Response): void {
   });
 }
 
-export function createReservationHandler(req: Request, res: Response): void {
+export async function createReservationHandler(req: Request, res: Response): Promise<void> {
   const validation = validateCreateReservationBody(req.body);
 
   if (!validation.ok) {
@@ -36,24 +36,24 @@ export function createReservationHandler(req: Request, res: Response): void {
     return;
   }
 
-  if (reservationRepository.hasConflict(validation.value)) {
+  if (await reservationRepository.hasConflict(validation.value)) {
     sendError(res, 409, "SLOT_CONFLICT", "Requested time slot is no longer available");
     return;
   }
 
-  const reservation = reservationRepository.create(validation.value);
+  const reservation = await reservationRepository.create(validation.value);
   res.status(201).json(reservation);
 }
 
-export function releaseReservationHandler(req: Request, res: Response): void {
-  const validation = validateReservationId(req.params.reservationId);
+export async function releaseReservationHandler(req: Request, res: Response): Promise<void> {
+  const validation = validateReservationId(String(req.params.reservationId));
 
   if (!validation.ok) {
     sendError(res, 400, validation.code, validation.message, validation.details);
     return;
   }
 
-  const reservation = reservationRepository.findById(validation.value);
+  const reservation = await reservationRepository.findById(validation.value);
 
   if (!reservation) {
     sendError(res, 404, "RESERVATION_NOT_FOUND", "Reservation not found", {
@@ -76,6 +76,6 @@ export function releaseReservationHandler(req: Request, res: Response): void {
     return;
   }
 
-  reservationRepository.release(validation.value);
+  await reservationRepository.release(validation.value);
   res.status(204).send();
 }

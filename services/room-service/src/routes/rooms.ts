@@ -8,7 +8,7 @@ import {
 } from "../http/validation";
 import { roomRepository } from "../repositories/roomRepository";
 
-export function listRoomsHandler(req: Request, res: Response): void {
+export async function listRoomsHandler(req: Request, res: Response): Promise<void> {
   const validation = validateListRoomsQuery(req);
 
   if (!validation.ok) {
@@ -16,23 +16,29 @@ export function listRoomsHandler(req: Request, res: Response): void {
     return;
   }
 
-  const rooms = roomRepository.list(validation.value);
+  try {
+    const rooms = await roomRepository.list(validation.value);
 
-  res.status(200).json({
-    items: rooms,
-    total: rooms.length
-  });
+    res.status(200).json({
+      items: rooms,
+      total: rooms.length
+    });
+  } catch (error) {
+    sendError(res, 500, "DATABASE_ERROR", "Failed to list rooms", {
+      message: error instanceof Error ? error.message : "Unknown database error"
+    });
+  }
 }
 
-export function getRoomByIdHandler(req: Request, res: Response): void {
-  const validation = validateRoomId(req.params.roomId);
+export async function getRoomByIdHandler(req: Request, res: Response): Promise<void> {
+  const validation = validateRoomId(String(req.params.roomId));
 
   if (!validation.ok) {
     sendError(res, 400, validation.code, validation.message);
     return;
   }
 
-  const room = roomRepository.findById(validation.value);
+  const room = await roomRepository.findById(validation.value);
 
   if (!room) {
     sendError(res, 404, "ROOM_NOT_FOUND", "Room not found", {
@@ -44,7 +50,7 @@ export function getRoomByIdHandler(req: Request, res: Response): void {
   res.status(200).json(room);
 }
 
-export function createRoomHandler(req: Request, res: Response): void {
+export async function createRoomHandler(req: Request, res: Response): Promise<void> {
   const roomIdValidation = validateRoomId(String(req.body?.roomId ?? ""));
   if (!roomIdValidation.ok) {
     sendError(res, 400, roomIdValidation.code, "roomId is required");
@@ -57,33 +63,33 @@ export function createRoomHandler(req: Request, res: Response): void {
     return;
   }
 
-  if (roomRepository.findById(roomIdValidation.value)) {
+  if (await roomRepository.findById(roomIdValidation.value)) {
     sendError(res, 409, "ROOM_ALREADY_EXISTS", "roomId already exists", {
       roomId: roomIdValidation.value
     });
     return;
   }
 
-  if (roomRepository.existsByRoomCode(payloadValidation.value.roomCode)) {
+  if (await roomRepository.existsByRoomCode(payloadValidation.value.roomCode)) {
     sendError(res, 409, "ROOM_CODE_ALREADY_EXISTS", "roomCode already exists", {
       roomCode: payloadValidation.value.roomCode
     });
     return;
   }
 
-  const room = roomRepository.create(roomIdValidation.value, payloadValidation.value);
+  const room = await roomRepository.create(roomIdValidation.value, payloadValidation.value);
 
   res.status(201).json(room);
 }
 
-export function updateRoomHandler(req: Request, res: Response): void {
-  const roomIdValidation = validateRoomId(req.params.roomId);
+export async function updateRoomHandler(req: Request, res: Response): Promise<void> {
+  const roomIdValidation = validateRoomId(String(req.params.roomId));
   if (!roomIdValidation.ok) {
     sendError(res, 400, roomIdValidation.code, roomIdValidation.message);
     return;
   }
 
-  const existingRoom = roomRepository.findById(roomIdValidation.value);
+  const existingRoom = await roomRepository.findById(roomIdValidation.value);
   if (!existingRoom) {
     sendError(res, 404, "ROOM_NOT_FOUND", "Room not found", {
       roomId: roomIdValidation.value
@@ -106,7 +112,7 @@ export function updateRoomHandler(req: Request, res: Response): void {
   }
 
   if (
-    roomRepository.existsByRoomCode(payloadValidation.value.roomCode, roomIdValidation.value)
+    await roomRepository.existsByRoomCode(payloadValidation.value.roomCode, roomIdValidation.value)
   ) {
     sendError(res, 409, "ROOM_CODE_ALREADY_EXISTS", "roomCode already exists", {
       roomCode: payloadValidation.value.roomCode
@@ -114,6 +120,6 @@ export function updateRoomHandler(req: Request, res: Response): void {
     return;
   }
 
-  const room = roomRepository.update(roomIdValidation.value, payloadValidation.value);
+  const room = await roomRepository.update(roomIdValidation.value, payloadValidation.value);
   res.status(200).json(room);
 }

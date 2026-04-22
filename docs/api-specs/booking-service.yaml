@@ -72,6 +72,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Lỗi khi gọi room-service hoặc schedule-service để validate booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     get:
       summary: Lấy danh sách booking theo bộ lọc
@@ -153,6 +159,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Booking không còn ở trạng thái PENDING hoặc reserve slot thất bại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Lỗi khi gọi schedule-service để reserve slot
           content:
             application/json:
               schema:

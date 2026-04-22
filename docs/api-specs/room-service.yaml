@@ -58,13 +58,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-        '404':
-          description: Không tìm thấy phòng
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
     post:
       summary: Tạo phòng học mới
       operationId: createRoom
@@ -73,7 +66,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Room'
+              $ref: '#/components/schemas/CreateRoomRequest'
       responses:
         '201':
           description: Tạo phòng thành công
@@ -116,7 +109,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Room'
+              $ref: '#/components/schemas/UpdateRoomRequest'
       responses:
         '200':
           description: Cập nhật phòng thành công
@@ -270,6 +263,60 @@ components:
             - projector
             - whiteboard
             - air_conditioner
+        description:
+          type: string
+          nullable: true
+          example: Phòng học tiêu chuẩn dành cho lớp lý thuyết
+
+    CreateRoomRequest:
+      allOf:
+        - $ref: '#/components/schemas/Room'
+
+    UpdateRoomRequest:
+      type: object
+      required:
+        - roomCode
+        - roomName
+        - building
+        - floor
+        - capacity
+        - status
+        - equipment
+      properties:
+        roomId:
+          type: string
+          description: Tùy chọn. Nếu truyền thì phải khớp với roomId trên path.
+          example: ROOM-A101
+        roomCode:
+          type: string
+          example: A101
+        roomName:
+          type: string
+          example: Phòng A101
+        building:
+          type: string
+          example: Building A
+        floor:
+          type: integer
+          minimum: 1
+          example: 1
+        capacity:
+          type: integer
+          minimum: 1
+          example: 40
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+          example: active
+        equipment:
+          type: array
+          items:
+            type: string
+          example:
+            - projector
+            - whiteboard
         description:
           type: string
           nullable: true

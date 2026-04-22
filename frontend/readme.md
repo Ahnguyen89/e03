@@ -2,53 +2,85 @@
 
 ## Overview
 
-Frontend duoc xay dung de demo end-to-end cho he thong dat phong hoc.
-Tat ca API call deu di qua `gateway`, frontend khong goi truc tiep `room-service`,
-`schedule-service` hay `booking-service`.
+Frontend là module giao diện của hệ thống microservices đặt phòng học. Module này cung cấp giao diện cho người dùng tra cứu phòng, kiểm tra lịch trống, gửi yêu cầu booking, theo dõi booking và xử lý approve/reject/cancel ở khu vực quản lý.
 
-## Implemented Screens
-
-- Dashboard tong quan va system status
-- Tra cuu phong hoc voi bo loc
-- Xem chi tiet phong va kiem tra availability
-- Form gui booking
-- Theo doi danh sach booking va chi tiet booking
-- Khu vuc manager/admin de approve, reject, cancel
+Frontend giao tiếp với backend thông qua **API Gateway**. Frontend không gọi trực tiếp `room-service`, `schedule-service` hoặc `booking-service`.
 
 ## Tech Stack
 
-- Plain HTML
-- Plain CSS
-- Plain JavaScript
-- Nginx
+| Component | Choice |
+|-----------|--------|
+| Framework | Plain HTML/JavaScript |
+| Styling | CSS, Bootstrap |
+| Package Manager | Không sử dụng |
+| Build Tool | Không sử dụng |
+| Static Runtime | BusyBox httpd |
 
-## Runtime Config
+## Getting Started
 
-Frontend dung runtime variable:
-
-- `FRONTEND_API_BASE_URL`
-
-Mac dinh:
-
-```text
-http://localhost:8080
+```bash
+# From project root
+docker compose up frontend --build
 ```
 
-Frontend se goi:
-
-- `${FRONTEND_API_BASE_URL}/health`
-- `${FRONTEND_API_BASE_URL}/api/rooms`
-- `${FRONTEND_API_BASE_URL}/api/schedules/...`
-- `${FRONTEND_API_BASE_URL}/api/bookings`
-
-## Run
+Chạy toàn bộ hệ thống:
 
 ```bash
 docker compose up --build
 ```
 
-Sau do mo:
+Sau khi chạy, mở giao diện tại:
 
 ```text
 http://localhost:3000
 ```
+
+## Project Structure
+
+```text
+frontend/
+├── Dockerfile
+├── readme.md
+└── src/
+    ├── index.html
+    ├── app.js
+    ├── styles.css
+    └── config.js
+```
+
+## Environment Variables
+
+Frontend hiện không sử dụng biến môi trường riêng. URL của API Gateway được cấu hình tĩnh trong `src/config.js`.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| Không sử dụng | Không có biến môi trường frontend | Không áp dụng |
+
+## Gateway Configuration
+
+File `src/config.js` khai báo URL gateway:
+
+```js
+window.__APP_CONFIG__ = {
+  gatewayBaseUrl: "http://localhost:8080"
+};
+```
+
+## Build for Production
+
+Frontend hiện không dùng npm, Vite, Webpack hoặc bước build riêng. Khi chạy Docker, các file tĩnh trong `src/` được copy vào image và phục vụ bằng BusyBox httpd.
+
+```bash
+docker compose build frontend
+```
+
+## Notes
+
+- Tất cả API call đều đi qua **API Gateway** tại `http://localhost:8080`.
+- Frontend không gọi trực tiếp các backend service như `room-service`, `schedule-service`, `booking-service`.
+- Các route API chính frontend đang gọi:
+  - `http://localhost:8080/health`
+  - `http://localhost:8080/api/rooms`
+  - `http://localhost:8080/api/schedules/...`
+  - `http://localhost:8080/api/bookings`
+- Frontend được expose ra host tại port `3000`.
