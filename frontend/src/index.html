@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Campus RoomFlow</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark">CR</div>
+          <div>
+            <p class="eyebrow">Classroom Booking System</p>
+            <h1>Campus RoomFlow</h1>
+          </div>
+        </div>
+        <nav class="topnav">
+          <a href="#rooms-section">Tra cứu phòng</a>
+          <a href="#booking-section">Gửi booking</a>
+          <a href="#tracking-section">Theo dõi booking</a>
+          <a href="#manager-section">Manager Desk</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Single entry point qua gateway</p>
+            <h2>Nền tảng đặt phòng học đủ đẹp để demo, đủ rõ để bảo vệ đồ án.</h2>
+            <p class="hero-text">
+              Tìm phòng, kiểm tra khung giờ, gửi yêu cầu đặt chỗ và xử lý phê duyệt
+              trong một giao diện duy nhất. Toàn bộ dữ liệu đi qua gateway để bám
+              đúng kiến trúc microservices đã chốt.
+            </p>
+            <div class="hero-actions">
+              <a class="button primary" href="#booking-section">Tạo booking mới</a>
+              <a class="button secondary" href="#manager-section">Mở manager desk</a>
+            </div>
+          </div>
+          <div class="hero-panel">
+            <div class="hero-panel-card">
+              <span class="label">API Gateway</span>
+              <div class="status-line">
+                <span id="gateway-status-dot" class="status-dot neutral"></span>
+                <strong id="gateway-status-text">Đang kiểm tra kết nối...</strong>
+              </div>
+              <p id="gateway-status-detail" class="muted">
+                Frontend sẽ hiển thị tình trạng truy cập gateway và thời điểm đồng bộ gần
+                nhất.
+              </p>
+            </div>
+            <div class="metric-grid">
+              <article class="metric-card">
+                <span class="label">Phòng đang có</span>
+                <strong id="rooms-count">0</strong>
+                <span id="rooms-active-summary" class="muted">Chưa tải dữ liệu</span>
+              </article>
+              <article class="metric-card">
+                <span class="label">Booking chờ xử lý</span>
+                <strong id="pending-count">0</strong>
+                <span class="muted">Dành cho manager/admin</span>
+              </article>
+              <article class="metric-card">
+                <span class="label">Booking đã duyệt</span>
+                <strong id="approved-count">0</strong>
+                <span class="muted">Sẵn sàng cho buổi học</span>
+              </article>
+              <article class="metric-card">
+                <span class="label">Dữ liệu cập nhật</span>
+                <strong id="last-sync">--:--</strong>
+                <span class="muted">Tự làm mới sau mỗi thao tác</span>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-grid" id="rooms-section">
+          <div class="section-heading">
+            <p class="eyebrow">Room Catalog</p>
+            <h3>Tra cứu phòng học</h3>
+            <p>
+              Lọc theo tòa nhà, sức chứa, trạng thái và thiết bị để chọn đúng không
+              gian phù hợp trước khi gửi booking.
+            </p>
+          </div>
+
+          <div class="panel panel-room-search">
+            <div class="panel-header">
+              <div>
+                <h4>Bộ lọc phòng</h4>
+                <p class="muted">Kết quả lấy từ `GET /api/rooms` qua gateway.</p>
+              </div>
+              <button id="refresh-rooms-button" class="button ghost" type="button">
+                Làm mới danh sách
+              </button>
+            </div>
+
+            <form id="room-filter-form" class="form-grid compact-grid">
+              <label>
+                <span>Tòa nhà</span>
+                <input name="building" placeholder="Ví dụ: Building A" />
+              </label>
+              <label>
+                <span>Sức chứa tối thiểu</span>
+                <input name="minCapacity" type="number" min="1" placeholder="40" />
+              </label>
+              <label>
+                <span>Trạng thái</span>
+                <select name="status">
+                  <option value="">Tất cả</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label>
+                <span>Thiết bị</span>
+                <input
+                  name="equipment"
+                  placeholder="projector, whiteboard"
+                />
+              </label>
+              <div class="form-actions">
+                <button class="button primary" type="submit">Áp dụng bộ lọc</button>
+                <button id="reset-room-filters" class="button secondary" type="button">
+                  Xóa lọc
+                </button>
+              </div>
+            </form>
+
+            <div id="room-feedback" class="feedback muted">Đang tải danh sách phòng...</div>
+            <div id="room-list" class="room-grid"></div>
+          </div>
+
+          <aside class="panel panel-room-detail">
+            <div class="panel-header">
+              <div>
+                <h4>Chi tiết phòng & kiểm tra khả dụng</h4>
+                <p class="muted">Chọn một phòng để xem thông tin và test khung giờ.</p>
+              </div>
+            </div>
+            <div id="room-detail" class="detail-empty">
+              Chưa chọn phòng nào để xem chi tiết.
+            </div>
+
+            <form id="availability-form" class="form-grid">
+              <label>
+                <span>Ngày sử dụng</span>
+                <input name="date" type="date" required />
+              </label>
+              <label>
+                <span>Giờ bắt đầu</span>
+                <input name="startTime" type="time" required />
+              </label>
+              <label>
+                <span>Giờ kết thúc</span>
+                <input name="endTime" type="time" required />
+              </label>
+              <div class="form-actions">
+                <button class="button primary" type="submit">Kiểm tra khung giờ</button>
+              </div>
+            </form>
+
+            <div id="availability-result" class="availability-card neutral-card">
+              Chưa có kết quả kiểm tra availability.
+            </div>
+          </aside>
+        </section>
+
+        <section class="section-grid" id="booking-section">
+          <div class="section-heading">
+            <p class="eyebrow">Booking Request</p>
+            <h3>Gửi yêu cầu booking</h3>
+            <p>
+              Sinh viên gửi yêu cầu đặt phòng với khung giờ cụ thể. Hệ thống sẽ tiền kiểm
+              phòng và slot trước khi tạo booking ở trạng thái chờ xử lý.
+            </p>
+          </div>
+
+          <div class="panel panel-booking-form">
+            <div class="panel-header">
+              <div>
+                <h4>Form đặt phòng</h4>
+                <p class="muted">Submit qua `POST /api/bookings`.</p>
+              </div>
+            </div>
+
+            <form id="booking-form" class="form-grid">
+              <label>
+                <span>Phòng học</span>
+                <select id="booking-room-select" name="roomId" required></select>
+              </label>
+              <label>
+                <span>Mã người gửi</span>
+                <input name="requesterId" required placeholder="STU001" />
+              </label>
+              <label>
+                <span>Họ tên</span>
+                <input name="requesterName" required placeholder="Nguyen Van A" />
+              </label>
+              <label>
+                <span>Email</span>
+                <input
+                  name="requesterEmail"
+                  type="email"
+                  required
+                  placeholder="sinhvien@school.edu.vn"
+                />
+              </label>
+              <label class="wide-field">
+                <span>Mục đích sử dụng</span>
+                <input name="purpose" required placeholder="Học nhóm môn kiến trúc phần mềm" />
+              </label>
+              <label>
+                <span>Số người tham gia</span>
+                <input name="attendeeCount" type="number" min="1" required placeholder="20" />
+              </label>
+              <label>
+                <span>Ngày</span>
+                <input name="date" type="date" required />
+              </label>
+              <label>
+                <span>Giờ bắt đầu</span>
+                <input name="startTime" type="time" required />
+              </label>
+              <label>
+                <span>Giờ kết thúc</span>
+                <input name="endTime" type="time" required />
+              </label>
+              <label class="wide-field">
+                <span>Ghi chú thêm</span>
+                <textarea
+                  name="purposeDetail"
+                  rows="3"
+                  placeholder="Ví dụ: cần yên tĩnh để thảo luận đề tài và chuẩn bị thuyết trình."
+                ></textarea>
+              </label>
+              <div class="form-actions">
+                <button class="button primary" type="submit">Gửi booking</button>
+                <button id="booking-form-reset" class="button secondary" type="button">
+                  Làm lại
+                </button>
+              </div>
+            </form>
+
+            <div id="booking-form-feedback" class="feedback muted">
+              Điền thông tin đầy đủ để tạo booking mới.
+            </div>
+          </div>
+
+          <div class="panel panel-booking-tips">
+            <div class="panel-header">
+              <div>
+                <h4>Luồng nghiệp vụ để demo</h4>
+                <p class="muted">Tóm tắt nhanh đúng theo analysis & architecture.</p>
+              </div>
+            </div>
+            <ol class="process-list">
+              <li>Chọn phòng active phù hợp và kiểm tra availability theo ngày giờ.</li>
+              <li>Gửi booking để hệ thống tạo trạng thái <strong>PENDING</strong>.</li>
+              <li>Chuyển sang khu <strong>Manager Desk</strong> để approve hoặc reject.</li>
+              <li>Quay lại phần theo dõi booking để xem trạng thái cuối cùng.</li>
+            </ol>
+            <div class="tip-card">
+              <span class="label">Mẹo demo</span>
+              <p>
+                Chọn cùng một phòng và cùng khung giờ cho 2 booking khác nhau để giảng viên
+                thấy rõ logic chống trùng lịch khi approve.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-grid" id="tracking-section">
+          <div class="section-heading">
+            <p class="eyebrow">Booking Tracker</p>
+            <h3>Theo dõi trạng thái booking</h3>
+            <p>
+              Xem danh sách booking, tra cứu theo người gửi hoặc trạng thái, và mở chi tiết
+              để theo dõi toàn bộ vòng đời xử lý.
+            </p>
+          </div>
+
+          <div class="panel panel-booking-list">
+            <div class="panel-header">
+              <div>
+                <h4>Danh sách booking</h4>
+                <p class="muted">Kết quả lấy từ `GET /api/bookings`.</p>
+              </div>
+              <button id="refresh-bookings-button" class="button ghost" type="button">
+                Làm mới booking
+              </button>
+            </div>
+
+            <form id="booking-filter-form" class="form-grid compact-grid">
+              <label>
+                <span>Trạng thái</span>
+                <select name="status">
+                  <option value="">Tất cả</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="APPROVED">APPROVED</option>
+                  <option value="REJECTED">REJECTED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              </label>
+              <label>
+                <span>Email người gửi</span>
+                <input name="requesterEmail" type="email" placeholder="sinhvien@school.edu.vn" />
+              </label>
+              <label>
+                <span>Mã phòng</span>
+                <input name="roomId" placeholder="ROOM-A101" />
+              </label>
+              <div class="form-actions">
+                <button class="button primary" type="submit">Lọc booking</button>
+                <button id="reset-booking-filters" class="button secondary" type="button">
+                  Xóa lọc
+                </button>
+              </div>
+            </form>
+
+            <div id="booking-list-feedback" class="feedback muted">
+              Đang tải dữ liệu booking...
+            </div>
+            <div id="booking-list" class="booking-list"></div>
+          </div>
+
+          <aside class="panel panel-booking-detail">
+            <div class="panel-header">
+              <div>
+                <h4>Chi tiết booking</h4>
+                <p class="muted">Chọn một booking từ danh sách để xem thông tin đầy đủ.</p>
+              </div>
+            </div>
+            <div id="booking-detail" class="detail-empty">
+              Chưa có booking nào được chọn.
+            </div>
+          </aside>
+        </section>
+
+        <section class="section-grid" id="manager-section">
+          <div class="section-heading">
+            <p class="eyebrow">Manager Desk</p>
+            <h3>Khu xử lý booking cho admin</h3>
+            <p>
+              Tập trung vào các booking chờ xử lý, thao tác approve/reject nhanh và hỗ trợ
+              cancel nếu cần. Toàn bộ action đều đi qua gateway rồi tới `booking-service`.
+            </p>
+          </div>
+
+          <div class="panel panel-manager-queue">
+            <div class="panel-header">
+              <div>
+                <h4>Hàng chờ phê duyệt</h4>
+                <p class="muted">Danh sách booking trạng thái PENDING.</p>
+              </div>
+            </div>
+            <div id="manager-queue" class="manager-queue"></div>
+          </div>
+
+          <div class="panel panel-manager-actions">
+            <div class="panel-header">
+              <div>
+                <h4>Thao tác quản lý</h4>
+                <p class="muted">
+                  Chọn booking trong danh sách để approve, reject hoặc cancel đúng theo rule.
+                </p>
+              </div>
+            </div>
+
+            <div id="manager-selected-summary" class="selection-summary">
+              Chưa chọn booking nào trong hàng chờ.
+            </div>
+
+            <form id="decision-form" class="form-grid">
+              <label>
+                <span>Người duyệt</span>
+                <input name="reviewedBy" required value="admin01" />
+              </label>
+              <label class="wide-field">
+                <span>Ghi chú xử lý</span>
+                <textarea
+                  name="reviewNote"
+                  rows="3"
+                  placeholder="Ví dụ: phòng phù hợp và còn trống theo lịch."
+                ></textarea>
+              </label>
+              <label class="wide-field">
+                <span>Lý do từ chối</span>
+                <textarea
+                  name="rejectionReason"
+                  rows="3"
+                  placeholder="Chỉ cần nhập khi chọn Reject."
+                ></textarea>
+              </label>
+              <div class="form-actions split-actions">
+                <button id="approve-button" class="button primary" type="submit">
+                  Approve booking
+                </button>
+                <button id="reject-button" class="button danger" type="button">
+                  Reject booking
+                </button>
+              </div>
+            </form>
+
+            <div class="manager-divider"></div>
+
+            <form id="cancel-form" class="form-grid compact-grid">
+              <label>
+                <span>Người hủy</span>
+                <input name="cancelledBy" value="admin01" required />
+              </label>
+              <label>
+                <span>Vai trò</span>
+                <select name="cancelledByRole">
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="STUDENT">STUDENT</option>
+                </select>
+              </label>
+              <label class="wide-field">
+                <span>Lý do hủy</span>
+                <input
+                  name="cancellationReason"
+                  placeholder="Ví dụ: điều chỉnh lại lịch học hoặc không còn nhu cầu."
+                />
+              </label>
+              <div class="form-actions">
+                <button class="button secondary" type="submit">Cancel booking</button>
+              </div>
+            </form>
+
+            <div id="manager-feedback" class="feedback muted">
+              Chọn booking để bắt đầu thao tác quản lý.
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast hidden" aria-live="polite"></div>
+
+    <script src="./config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

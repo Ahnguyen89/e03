@@ -1,0 +1,32 @@
+import express from "express";
+
+import {
+  checkAvailabilityHandler,
+  createReservationHandler,
+  releaseReservationHandler
+} from "./routes/schedules";
+
+const app = express();
+const port = Number(process.env.PORT ?? 5000);
+
+app.disable("x-powered-by");
+app.use(express.json());
+
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+app.get("/schedules/availability", checkAvailabilityHandler);
+app.post("/schedules/reservations", createReservationHandler);
+app.delete("/schedules/reservations/:reservationId", releaseReservationHandler);
+
+app.use((_req, res) => {
+  res.status(404).json({
+    code: "RESOURCE_NOT_FOUND",
+    message: "Resource not found"
+  });
+});
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`schedule-service listening on port ${port}`);
+});

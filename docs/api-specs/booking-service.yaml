@@ -1,0 +1,492 @@
+openapi: 3.0.3
+
+info:
+  title: Booking Service API
+  version: 1.0.0
+  description: |
+    API cho booking-service trong đồ án cho thuê phòng học.
+    Service này chỉ phụ trách:
+    - tạo booking request
+    - lưu trạng thái PENDING, APPROVED, REJECTED, CANCELLED
+    - nhận quyết định của admin
+    - kiểm tra state transition hợp lệ
+    - điều phối với room-service và schedule-service
+
+servers:
+  - url: http://booking-service:5000
+    description: Truy cập nội bộ trong Docker Compose bằng service name
+  - url: http://localhost:5003
+    description: Truy cập trực tiếp service ở môi trường local
+  - url: http://localhost:8080/api
+    description: Truy cập thông qua gateway ở môi trường local
+
+paths:
+  /health:
+    get:
+      summary: Kiểm tra trạng thái service
+      operationId: getBookingServiceHealth
+      responses:
+        '200':
+          description: Service hoạt động bình thường
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /bookings:
+    post:
+      summary: Tạo yêu cầu booking mới
+      description: |
+        Tạo booking ở trạng thái PENDING.
+        Trước khi lưu, booking-service sẽ validate input, xác minh room tồn tại/active
+        và tiền kiểm availability qua schedule-service.
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBookingRequest'
+      responses:
+        '201':
+          description: Tạo booking thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Không tìm thấy phòng hoặc phòng không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Khung giờ không còn khả dụng hoặc có xung đột nghiệp vụ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Lấy danh sách booking theo bộ lọc
+      operationId: listBookings
+      parameters:
+        - $ref: '#/components/parameters/StatusQuery'
+        - $ref: '#/components/parameters/DateQuery'
+        - $ref: '#/components/parameters/RequesterIdQuery'
+        - $ref: '#/components/parameters/RequesterEmailQuery'
+        - $ref: '#/components/parameters/RoomIdQuery'
+      responses:
+        '200':
+          description: Danh sách booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingListResponse'
+        '400':
+          description: Query parameters không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}:
+    get:
+      summary: Lấy chi tiết một booking
+      operationId: getBookingById
+      parameters:
+        - $ref: '#/components/parameters/BookingIdPath'
+      responses:
+        '200':
+          description: Chi tiết booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Không tìm thấy booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/decision:
+    post:
+      summary: Ghi nhận quyết định phê duyệt hoặc từ chối của admin
+      description: |
+        Chỉ hợp lệ khi booking đang ở trạng thái PENDING.
+        Nếu quyết định là APPROVE, service phải reserve slot thành công trước khi
+        cập nhật booking sang APPROVED.
+      operationId: decideBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingDecisionRequest'
+      responses:
+        '200':
+          description: Cập nhật trạng thái booking thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Không tìm thấy booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Booking không còn ở trạng thái PENDING hoặc reserve slot thất bại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /bookings/{bookingId}/cancellation:
+    post:
+      summary: Hủy một booking theo đúng quyền nghiệp vụ
+      description: |
+        Student chỉ được hủy booking do mình tạo khi booking còn PENDING.
+        Admin được hủy booking ở trạng thái PENDING hoặc APPROVED.
+        Nếu booking đang APPROVED thì phải release slot trước khi cập nhật CANCELLED.
+      operationId: cancelBooking
+      parameters:
+        - $ref: '#/components/parameters/BookingIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCancellationRequest'
+      responses:
+        '200':
+          description: Hủy booking thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Không tìm thấy booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Transition không hợp lệ hoặc release slot thất bại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+x-grpc:
+  enabled: false
+
+x-async-events:
+  enabled: false
+
+components:
+  parameters:
+    BookingIdPath:
+      name: bookingId
+      in: path
+      required: true
+      description: Mã định danh của booking
+      schema:
+        type: string
+        format: uuid
+
+    StatusQuery:
+      name: status
+      in: query
+      required: false
+      description: Lọc theo trạng thái booking
+      schema:
+        type: string
+        enum:
+          - PENDING
+          - APPROVED
+          - REJECTED
+          - CANCELLED
+
+    DateQuery:
+      name: date
+      in: query
+      required: false
+      description: Lọc theo ngày booking, định dạng YYYY-MM-DD
+      schema:
+        type: string
+        format: date
+
+    RequesterIdQuery:
+      name: requesterId
+      in: query
+      required: false
+      description: Lọc theo mã người tạo booking
+      schema:
+        type: string
+        example: STU001
+
+    RequesterEmailQuery:
+      name: requesterEmail
+      in: query
+      required: false
+      description: Lọc theo email người tạo booking
+      schema:
+        type: string
+        format: email
+
+    RoomIdQuery:
+      name: roomId
+      in: query
+      required: false
+      description: Lọc theo mã phòng
+      schema:
+        type: string
+        example: ROOM-A101
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: INVALID_TRANSITION
+        message:
+          type: string
+          example: Booking không còn ở trạng thái PENDING
+        details:
+          type: object
+          additionalProperties: true
+
+    CreateBookingRequest:
+      type: object
+      required:
+        - roomId
+        - requesterId
+        - requesterName
+        - requesterEmail
+        - purpose
+        - attendeeCount
+        - date
+        - startTime
+        - endTime
+      properties:
+        roomId:
+          type: string
+          example: ROOM-A101
+        requesterId:
+          type: string
+          example: STU001
+        requesterName:
+          type: string
+          example: Nguyen Van A
+        requesterEmail:
+          type: string
+          format: email
+          example: nguyenvana@student.edu.vn
+        purpose:
+          type: string
+          example: Học nhóm môn kiến trúc phần mềm
+        attendeeCount:
+          type: integer
+          minimum: 1
+          example: 20
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '09:00'
+        endTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '11:00'
+        purposeDetail:
+          type: string
+          nullable: true
+          example: Ôn tập trước kỳ thi cuối kỳ
+
+    BookingDecisionRequest:
+      type: object
+      required:
+        - decision
+        - reviewedBy
+      properties:
+        decision:
+          type: string
+          enum:
+            - APPROVE
+            - REJECT
+          example: APPROVE
+        reviewedBy:
+          type: string
+          example: admin01
+        reviewNote:
+          type: string
+          nullable: true
+          example: Phòng phù hợp và còn trống theo lịch
+        rejectionReason:
+          type: string
+          nullable: true
+          example: Khung giờ đã được ưu tiên cho lớp học khác
+      description: |
+        Nếu decision là REJECT thì nên cung cấp rejectionReason.
+        Nếu decision là APPROVE thì rejectionReason nên để trống.
+
+    BookingCancellationRequest:
+      type: object
+      required:
+        - cancelledBy
+        - cancelledByRole
+      properties:
+        cancelledBy:
+          type: string
+          example: STU001
+        cancelledByRole:
+          type: string
+          enum:
+            - STUDENT
+            - ADMIN
+          example: STUDENT
+        cancellationReason:
+          type: string
+          nullable: true
+          example: Không còn nhu cầu sử dụng phòng
+
+    Booking:
+      type: object
+      required:
+        - bookingId
+        - roomId
+        - requesterId
+        - requesterName
+        - requesterEmail
+        - purpose
+        - attendeeCount
+        - date
+        - startTime
+        - endTime
+        - status
+        - createdAt
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          example: 7a3e2db8-2714-4a6d-a30c-5d79c6e11abc
+        roomId:
+          type: string
+          example: ROOM-A101
+        requesterId:
+          type: string
+          example: STU001
+        requesterName:
+          type: string
+          example: Nguyen Van A
+        requesterEmail:
+          type: string
+          format: email
+          example: nguyenvana@student.edu.vn
+        purpose:
+          type: string
+          example: Học nhóm môn kiến trúc phần mềm
+        attendeeCount:
+          type: integer
+          example: 20
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          example: '09:00'
+        endTime:
+          type: string
+          example: '11:00'
+        purposeDetail:
+          type: string
+          nullable: true
+          example: Ôn tập trước kỳ thi cuối kỳ
+        status:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+            - CANCELLED
+          example: PENDING
+        reviewedBy:
+          type: string
+          nullable: true
+          example: admin01
+        reviewNote:
+          type: string
+          nullable: true
+          example: Đã kiểm tra và chấp thuận
+        rejectionReason:
+          type: string
+          nullable: true
+          example: Khung giờ không phù hợp
+        cancellationReason:
+          type: string
+          nullable: true
+          example: Không còn nhu cầu sử dụng phòng
+        reservationId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 1162c61d-67aa-49fe-8eb0-2a8596f37001
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    BookingListResponse:
+      type: object
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        total:
+          type: integer
+          example: 5

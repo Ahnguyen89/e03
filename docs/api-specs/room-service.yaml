@@ -1,0 +1,290 @@
+openapi: 3.0.3
+
+info:
+  title: Room Service API
+  version: 1.0.0
+  description: |
+    API cho room-service trong đồ án cho thuê phòng học.
+    Service này chỉ phụ trách dữ liệu phòng học:
+    - danh sách phòng
+    - chi tiết phòng
+    - xác nhận phòng có tồn tại và đang active hay không
+
+servers:
+  - url: http://room-service:5000
+    description: Truy cập nội bộ trong Docker Compose bằng service name
+  - url: http://localhost:5001
+    description: Truy cập trực tiếp service ở môi trường local
+  - url: http://localhost:8080/api
+    description: Truy cập thông qua gateway ở môi trường local
+
+paths:
+  /health:
+    get:
+      summary: Kiểm tra trạng thái service
+      operationId: getRoomServiceHealth
+      responses:
+        '200':
+          description: Service hoạt động bình thường
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /rooms:
+    get:
+      summary: Lấy danh sách phòng học
+      description: |
+        Trả về danh sách phòng theo các bộ lọc metadata.
+        Room-service không kiểm tra availability hay giữ chỗ.
+      operationId: listRooms
+      parameters:
+        - $ref: '#/components/parameters/BuildingQuery'
+        - $ref: '#/components/parameters/FloorQuery'
+        - $ref: '#/components/parameters/MinCapacityQuery'
+        - $ref: '#/components/parameters/EquipmentQuery'
+        - $ref: '#/components/parameters/StatusQuery'
+      responses:
+        '200':
+          description: Danh sách phòng phù hợp
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoomListResponse'
+        '400':
+          description: Query parameters không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+        '404':
+          description: Không tìm thấy phòng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      summary: Tạo phòng học mới
+      operationId: createRoom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Room'
+      responses:
+        '201':
+          description: Tạo phòng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          description: Dữ liệu không hợp lệ
+        '409':
+          description: Mã phòng đã tồn tại
+
+  /rooms/{roomId}:
+    get:
+      summary: Lấy chi tiết một phòng học
+      operationId: getRoomById
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: Chi tiết phòng học
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '404':
+          description: Không tìm thấy phòng
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      summary: Cập nhật thông tin phòng học
+      operationId: updateRoom
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Room'
+      responses:
+        '200':
+          description: Cập nhật phòng thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Room'
+        '400':
+          description: Dữ liệu không hợp lệ
+        '404':
+          description: Không tìm thấy phòng
+        '409':
+          description: Xung đột dữ liệu
+
+x-grpc:
+  enabled: false
+
+x-async-events:
+  enabled: false
+
+components:
+  parameters:
+    RoomIdPath:
+      name: roomId
+      in: path
+      required: true
+      description: Mã định danh của phòng học
+      schema:
+        type: string
+        example: ROOM-A101
+
+    BuildingQuery:
+      name: building
+      in: query
+      required: false
+      description: Lọc theo tòa nhà
+      schema:
+        type: string
+        example: Building A
+
+    FloorQuery:
+      name: floor
+      in: query
+      required: false
+      description: Lọc theo tầng
+      schema:
+        type: integer
+        minimum: 1
+        example: 1
+
+    MinCapacityQuery:
+      name: minCapacity
+      in: query
+      required: false
+      description: Sức chứa tối thiểu cần đáp ứng
+      schema:
+        type: integer
+        minimum: 1
+        example: 30
+
+    EquipmentQuery:
+      name: equipment
+      in: query
+      required: false
+      description: Thiết bị yêu cầu. Có thể truyền nhiều giá trị bằng cách lặp lại query parameter.
+      schema:
+        type: array
+        items:
+          type: string
+      style: form
+      explode: true
+
+    StatusQuery:
+      name: status
+      in: query
+      required: false
+      description: Lọc theo trạng thái phòng
+      schema:
+        type: string
+        enum:
+          - active
+          - inactive
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: ROOM_NOT_FOUND
+        message:
+          type: string
+          example: Không tìm thấy phòng học
+        details:
+          type: object
+          additionalProperties: true
+
+    Room:
+      type: object
+      required:
+        - roomId
+        - roomCode
+        - roomName
+        - building
+        - floor
+        - capacity
+        - status
+        - equipment
+      properties:
+        roomId:
+          type: string
+          example: ROOM-A101
+        roomCode:
+          type: string
+          example: A101
+        roomName:
+          type: string
+          example: Phòng A101
+        building:
+          type: string
+          example: Building A
+        floor:
+          type: integer
+          example: 1
+        capacity:
+          type: integer
+          example: 40
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+          example: active
+        equipment:
+          type: array
+          items:
+            type: string
+          example:
+            - projector
+            - whiteboard
+            - air_conditioner
+        description:
+          type: string
+          nullable: true
+          example: Phòng học tiêu chuẩn dành cho lớp lý thuyết
+
+    RoomListResponse:
+      type: object
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Room'
+        total:
+          type: integer
+          example: 2

@@ -1,0 +1,296 @@
+openapi: 3.0.3
+
+info:
+  title: Schedule Service API
+  version: 1.0.0
+  description: |
+    API cho schedule-service trong đồ án cho thuê phòng học.
+    Service này chỉ phụ trách:
+    - kiểm tra availability theo roomId và khung thời gian
+    - reserve slot khi booking được duyệt
+    - release slot khi booking bị hủy
+    - quản lý reservation và chống trùng lịch
+
+servers:
+  - url: http://schedule-service:5000
+    description: Truy cập nội bộ trong Docker Compose bằng service name
+  - url: http://localhost:5002
+    description: Truy cập trực tiếp service ở môi trường local
+  - url: http://localhost:8080/api
+    description: Truy cập thông qua gateway ở môi trường local
+
+paths:
+  /health:
+    get:
+      summary: Kiểm tra trạng thái service
+      operationId: getScheduleServiceHealth
+      responses:
+        '200':
+          description: Service hoạt động bình thường
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /schedules/availability:
+    get:
+      summary: Kiểm tra khả dụng của phòng theo khung giờ
+      operationId: checkAvailability
+      parameters:
+        - $ref: '#/components/parameters/RoomIdQuery'
+        - $ref: '#/components/parameters/DateQuery'
+        - $ref: '#/components/parameters/StartTimeQuery'
+        - $ref: '#/components/parameters/EndTimeQuery'
+      responses:
+        '200':
+          description: Kết quả kiểm tra availability
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Không tìm thấy thông tin room/slot cần tra cứu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /schedules/reservations:
+    post:
+      summary: Giữ chỗ một slot cho booking đã được duyệt
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationRequest'
+      responses:
+        '201':
+          description: Reserve slot thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Dữ liệu đầu vào không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Không tìm thấy room cần reserve
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Slot không còn khả dụng hoặc bị trùng lịch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /schedules/reservations/{reservationId}:
+    delete:
+      summary: Giải phóng slot đã reserve
+      operationId: releaseReservation
+      parameters:
+        - $ref: '#/components/parameters/ReservationIdPath'
+      responses:
+        '204':
+          description: Release slot thành công
+        '404':
+          description: Không tìm thấy reservation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Reservation không thể release do trạng thái không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+x-grpc:
+  enabled: false
+
+x-async-events:
+  enabled: false
+
+components:
+  parameters:
+    RoomIdQuery:
+      name: roomId
+      in: query
+      required: true
+      description: Mã định danh của phòng
+      schema:
+        type: string
+        example: ROOM-A101
+
+    DateQuery:
+      name: date
+      in: query
+      required: true
+      description: Ngày cần kiểm tra theo định dạng YYYY-MM-DD
+      schema:
+        type: string
+        format: date
+
+    StartTimeQuery:
+      name: startTime
+      in: query
+      required: true
+      description: Giờ bắt đầu theo định dạng HH:MM
+      schema:
+        type: string
+        pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        example: '09:00'
+
+    EndTimeQuery:
+      name: endTime
+      in: query
+      required: true
+      description: Giờ kết thúc theo định dạng HH:MM
+      schema:
+        type: string
+        pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+        example: '11:00'
+
+    ReservationIdPath:
+      name: reservationId
+      in: path
+      required: true
+      description: Mã định danh reservation do schedule-service sinh ra
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: SLOT_CONFLICT
+        message:
+          type: string
+          example: Khung giờ yêu cầu không còn khả dụng
+        details:
+          type: object
+          additionalProperties: true
+
+    AvailabilityResponse:
+      type: object
+      required:
+        - roomId
+        - date
+        - startTime
+        - endTime
+        - available
+      properties:
+        roomId:
+          type: string
+          example: ROOM-A101
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          example: '09:00'
+        endTime:
+          type: string
+          example: '11:00'
+        available:
+          type: boolean
+          example: false
+        reason:
+          type: string
+          nullable: true
+          example: Đã có reservation hợp lệ trùng với khung giờ yêu cầu
+
+    CreateReservationRequest:
+      type: object
+      required:
+        - bookingId
+        - roomId
+        - date
+        - startTime
+        - endTime
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+          example: 7a3e2db8-2714-4a6d-a30c-5d79c6e11abc
+        roomId:
+          type: string
+          example: ROOM-A101
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '09:00'
+        endTime:
+          type: string
+          pattern: '^([01]\d|2[0-3]):[0-5]\d$'
+          example: '11:00'
+
+    Reservation:
+      type: object
+      required:
+        - reservationId
+        - bookingId
+        - roomId
+        - date
+        - startTime
+        - endTime
+        - status
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+          example: 1162c61d-67aa-49fe-8eb0-2a8596f37001
+        bookingId:
+          type: string
+          format: uuid
+          example: 7a3e2db8-2714-4a6d-a30c-5d79c6e11abc
+        roomId:
+          type: string
+          example: ROOM-A101
+        date:
+          type: string
+          format: date
+        startTime:
+          type: string
+          example: '09:00'
+        endTime:
+          type: string
+          example: '11:00'
+        status:
+          type: string
+          enum:
+            - RESERVED
+            - RELEASED
+          example: RESERVED
