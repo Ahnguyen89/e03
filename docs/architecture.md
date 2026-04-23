@@ -76,19 +76,8 @@ Kiến trúc được chọn là:
 
 ## 3. Giao tiếp giữa các thành phần
 
-### 3.1 Nguyên tắc giao tiếp bắt buộc
 
-1. Frontend **không gọi trực tiếp** `room-service`, `schedule-service`, `booking-service`.
-2. Mọi request từ trình duyệt phải đi qua `gateway`.
-3. `booking-service` là service điều phối nghiệp vụ trung tâm.
-4. `booking-service` được phép gọi:
-   - `room-service` để kiểm tra phòng tồn tại và đang active
-   - `schedule-service` để kiểm tra availability, reserve, release
-5. `room-service` và `schedule-service` không gọi trực tiếp database của service khác.
-6. Không service nào được truy cập trực tiếp database của service khác.
-7. Mọi inter-service call trong Docker phải dùng **service names**, không dùng `localhost`.
-
-### 3.2 Ma trận giao tiếp
+###  Ma trận giao tiếp
 
 | Từ \ Đến             | Frontend | Gateway | Room Service | Schedule Service | Booking Service | Room DB | Schedule DB | Booking DB |
 | -------------------- | -------- | ------- | ------------ | ---------------- | --------------- | ------- | ----------- | ---------- |
@@ -100,49 +89,6 @@ Kiến trúc được chọn là:
 | **Room DB**          | —        | —       | —            | —                | —               | —       | —           | —          |
 | **Schedule DB**      | —        | —       | —            | —                | —               | —       | —           | —          |
 | **Booking DB**       | —        | —       | —            | —                | —               | —       | —           | —          |
-
-### 3.3 Giải thích ma trận giao tiếp
-
-- `Frontend -> Gateway = REST`
-  - giao diện chỉ đi qua gateway
-- `Gateway -> Room Service = REST`
-  - phục vụ tra cứu danh sách phòng, chi tiết phòng, dữ liệu phòng
-- `Gateway -> Schedule Service = REST`
-  - có thể phục vụ admin/debug API nội bộ liên quan đến availability/reservation nếu cần
-- `Gateway -> Booking Service = REST`
-  - phục vụ tạo booking, xem booking, phê duyệt, từ chối, hủy
-- `Booking Service -> Room Service = REST`
-  - xác minh phòng tồn tại / active trước khi tạo booking
-- `Booking Service -> Schedule Service = REST`
-  - tiền kiểm availability trước khi tạo `PENDING`
-  - reserve slot khi `APPROVE`
-  - release slot khi `CANCEL`
-- `Room Service -> Room DB = TCP`
-- `Schedule Service -> Schedule DB = TCP`
-- `Booking Service -> Booking DB = TCP`
-
-### 3.4 Tính nhất quán với business process
-
-Luồng nghiệp vụ được hiện thực như sau:
-
-- sinh viên tìm phòng:
-  - `Frontend -> Gateway -> Room Service`
-- sinh viên gửi booking:
-  - `Frontend -> Gateway -> Booking Service`
-  - `Booking Service -> Room Service`
-  - `Booking Service -> Schedule Service`
-- admin phê duyệt:
-  - `Frontend -> Gateway -> Booking Service`
-  - `Booking Service -> Schedule Service` để reserve slot
-- admin hoặc sinh viên hủy:
-  - `Frontend -> Gateway -> Booking Service`
-  - nếu booking đang `APPROVED` thì `Booking Service -> Schedule Service` để release slot
-
-Như vậy:
-
-- `Booking Service` giữ nghiệp vụ
-- `Schedule Service` giữ tính nhất quán tài nguyên thời gian
-- `Room Service` giữ dữ liệu phòng
 
 ---
 
