@@ -26,10 +26,6 @@ Các trách nhiệm chưa triển khai trong phạm vi bài này:
 | Component | Choice |
 |-----------|--------|
 | Approach | Nginx Reverse Proxy |
-| Runtime image | `nginx:1.27-alpine` |
-| Protocol | HTTP/REST |
-| Service discovery | Docker Compose DNS / service names |
-| Configuration file | `gateway/nginx.conf` |
 
 ## Routing Table
 
@@ -40,14 +36,6 @@ Các trách nhiệm chưa triển khai trong phạm vi bài này:
 | `/api/schedules/*` | `schedule-service` | `http://schedule-service:5000/schedules/*` |
 | `/api/bookings/*` | `booking-service` | `http://booking-service:5000/bookings/*` |
 
-Ví dụ:
-
-| Client Request | Forwarded Request |
-|----------------|-------------------|
-| `GET /api/rooms` | `GET http://room-service:5000/rooms` |
-| `GET /api/schedules/availability` | `GET http://schedule-service:5000/schedules/availability` |
-| `POST /api/bookings` | `POST http://booking-service:5000/bookings` |
-| `POST /api/bookings/{bookingId}/decision` | `POST http://booking-service:5000/bookings/{bookingId}/decision` |
 
 ## Running
 
