@@ -142,46 +142,6 @@ C4Container
     Rel(booking, bookingdb, "Đọc/Ghi", "TCP")
 ```
 
-### 4.3 Sơ đồ luồng nghiệp vụ qua các service
-
-```mermaid
-sequenceDiagram
-    participant U as Sinh viên/Admin
-    participant FE as Frontend
-    participant GW as Gateway
-    participant BS as Booking Service
-    participant RS as Room Service
-    participant SS as Schedule Service
-
-    U->>FE: Thao tác trên giao diện
-    FE->>GW: HTTP request
-
-    alt Tra cứu phòng
-        GW->>RS: GET /rooms hoặc GET /rooms/{roomId}
-        RS-->>GW: Dữ liệu phòng
-        GW-->>FE: Response
-    else Tạo booking
-        GW->>BS: POST /bookings
-        BS->>RS: Kiểm tra room tồn tại và active
-        RS-->>BS: Hợp lệ / không hợp lệ
-        BS->>SS: Tiền kiểm availability
-        SS-->>BS: Available / unavailable
-        BS-->>GW: Tạo PENDING hoặc trả lỗi
-        GW-->>FE: Response
-    else Phê duyệt booking
-        GW->>BS: POST /bookings/{bookingId}/decision
-        BS->>SS: Reserve slot
-        SS-->>BS: reservationId hoặc conflict
-        BS-->>GW: APPROVED / REJECTED / lỗi
-        GW-->>FE: Response
-    else Hủy booking
-        GW->>BS: POST /bookings/{bookingId}/cancellation
-        BS->>SS: Release slot nếu booking đang APPROVED
-        SS-->>BS: Kết quả release
-        BS-->>GW: CANCELLED hoặc lỗi
-        GW-->>FE: Response
-    end
-```
 
 ---
 
