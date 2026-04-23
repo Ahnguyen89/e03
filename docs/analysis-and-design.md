@@ -70,41 +70,7 @@ Các yêu cầu phi chức năng làm đầu vào cho việc xác định servic
 | Consistency | Một khung giờ của một phòng không được tồn tại đồng thời hai booking ở trạng thái `APPROVED`. Điểm kiểm soát cuối cùng phải nằm ở thao tác reserve slot tại thời điểm admin phê duyệt. |
 | Auditability | Các quyết định quan trọng như phê duyệt, từ chối, hủy và thay đổi trạng thái cần có khả năng truy vết theo booking và actor thực hiện. |
 
-### 1.4 Key Business Rules & Assumptions
 
-Các quy tắc sau được chốt ngay từ Phase 1 để tránh mâu thuẫn khi sang thiết kế chi tiết:
-
-1. Một booking chỉ hợp lệ nếu tham chiếu đến một phòng có tồn tại và đang ở trạng thái hoạt động.
-2. Dữ liệu đầu vào tối thiểu của yêu cầu đặt phòng gồm `roomId`, `date`, `startTime`, `endTime`, `purpose`, `requesterId`.
-3. Trong phạm vi hiện tại, `startTime` phải nhỏ hơn `endTime` và booking chỉ áp dụng cho một ngày duy nhất.
-4. Việc kiểm tra availability tại thời điểm tạo booking chỉ là **tiền kiểm** để loại bỏ yêu cầu sai rõ ràng; điểm quyết định cuối cùng vẫn là thao tác reserve slot khi admin phê duyệt.
-5. Một booking chỉ được chuyển sang `APPROVED` nếu thao tác reserve slot thành công. Nếu reserve thất bại vì xung đột, hệ thống không được ghi nhận booking là `APPROVED`.
-6. Trạng thái `REJECTED` là trạng thái kết thúc và không kéo theo thao tác release slot vì slot chưa được giữ chỗ.
-7. Quy tắc hủy được giả định như sau:
-   - Student chỉ được hủy booking do chính mình tạo khi booking còn ở trạng thái `PENDING`.
-   - Admin được hủy booking ở trạng thái `PENDING` hoặc `APPROVED`.
-8. Nếu booking đang ở trạng thái `APPROVED`, hệ thống phải release slot trước khi cập nhật `CANCELLED`.
-9. Khi reserve slot thành công, hệ thống phải lưu `reservationId` do service quản lý lịch trả về để phục vụ thao tác release sau này.
-10. Các chuyển trạng thái không hợp lệ như `APPROVED -> REJECTED`, `REJECTED -> APPROVED`, `CANCELLED -> APPROVED` đều bị từ chối.
-
-### 1.5 Booking State Model
-
-Mô hình trạng thái ở mức nghiệp vụ:
-
-```mermaid
-flowchart LR
-    P[PENDING] -->|Admin approve + reserve success| A[APPROVED]
-    P -->|Admin reject| R[REJECTED]
-    P -->|Student/Admin cancel theo quyền| C[CANCELLED]
-    A -->|Cancel + release success| C
-```
-
-Ghi chú:
-- `PENDING` là trạng thái chờ quyết định, chưa khóa tài nguyên một cách chính thức.
-- `APPROVED` là trạng thái đã giữ chỗ thành công.
-- `REJECTED` và `CANCELLED` là các trạng thái kết thúc trong phạm vi hiện tại.
-
----
 
 ## Part 2 - REST/Microservices Modeling
 
