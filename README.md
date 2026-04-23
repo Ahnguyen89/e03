@@ -4,11 +4,15 @@ He thong demo microservices cho nghiep vu dat phong hoc trong truong dai hoc.
 Frontend goi API Gateway, gateway dinh tuyen request den cac backend service, moi
 service so huu database rieng.
 
-## Team Members
+## Thông tin nhóm
 
-| Name | Student ID | Role | Contribution |
-|------|------------|------|--------------|
-|      |            |      |              |
+| Họ và tên | MSSV | Vai trò | Phần công việc phụ trách |
+|-----------|------|---------|---------------------------|
+| .................... | .................... | Thành viên 1 | `room-service`, `room-db`, `docs/api-specs/room-service.yaml`, `services/room-service/readme.md` |
+| .................... | .................... | Thành viên 2 | `schedule-service`, `schedule-db`, `docs/api-specs/schedule-service.yaml`, `services/schedule-service/readme.md` |
+| .................... | .................... | Thành viên 3 | `booking-service`, `booking-db`, `gateway`, `frontend`, `docs/api-specs/booking-service.yaml`, `services/booking-service/readme.md`, tích hợp toàn hệ thống |
+
+> Nhóm tự điền họ tên và MSSV vào từng dòng trước khi nộp bài.
 
 ## Business Process
 
