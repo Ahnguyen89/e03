@@ -1,26 +1,30 @@
 # Campus RoomFlow
 
-He thong demo microservices cho nghiep vu dat phong hoc trong truong dai hoc.
-Frontend goi API Gateway, gateway dinh tuyen request den cac backend service, moi
-service so huu database rieng.
+Hệ thống demo microservices cho nghiệp vụ đặt phòng học trong trường đại học.
+Frontend gọi API Gateway, gateway định tuyến request đến các backend service, mỗi
+service sở hữu database riêng.
 
-## Team Members
+## Thông tin nhóm
 
-| Name | Student ID | Role | Contribution |
-|------|------------|------|--------------|
-|      |            |      |              |
+| Họ và tên | MSSV | Vai trò | Phần công việc phụ trách |
+|-----------|------|---------|---------------------------|
+| .................... | .................... | Thành viên 1 | `room-service`, `room-db`, `docs/api-specs/room-service.yaml`, `services/room-service/readme.md` |
+| .................... | .................... | Thành viên 2 | `schedule-service`, `schedule-db`, `docs/api-specs/schedule-service.yaml`, `services/schedule-service/readme.md` |
+| .................... | .................... | Thành viên 3 | `booking-service`, `booking-db`, `gateway`, `frontend`, `docs/api-specs/booking-service.yaml`, `services/booking-service/readme.md`, tích hợp toàn hệ thống |
+
+> Nhóm tự điền họ tên và MSSV vào từng dòng trước khi nộp bài.
 
 ## Business Process
 
-Sinh vien tra cuu phong hoc, gui yeu cau dat phong theo khung gio. Quan tri vien
-xem danh sach booking, phe duyet, tu choi hoac huy booking. He thong dam bao
-booking di qua gateway va cac backend service duoc tach theo trach nhiem nghiep vu.
+Sinh viên tra cứu phòng học, gửi yêu cầu đặt phòng theo khung giờ. Quản trị viên
+xem danh sách booking, phê duyệt, từ chối hoặc hủy booking. Hệ thống đảm bảo
+booking đi qua gateway và các backend service được tách theo trách nhiệm nghiệp vụ.
 
 ## Technology Stack
 
-| Phan | Cong nghe |
+| Phần | Công nghệ |
 |------|-----------|
-| Frontend | HTML, CSS, JavaScript thuan, Bootstrap |
+| Frontend | HTML, CSS, JavaScript thuần, Bootstrap |
 | API Gateway | Nginx Reverse Proxy |
 | Backend services | Node.js, Express, TypeScript |
 | Database | PostgreSQL |
@@ -47,11 +51,11 @@ graph LR
 
 | Component | Responsibility | Tech Stack | Port |
 |-----------|----------------|------------|------|
-| Frontend | Giao dien tra cuu phong, tao booking, xu ly admin | HTML/CSS/JS, Bootstrap | 3000 |
-| Gateway | Diem vao duy nhat, reverse proxy request den backend | Nginx | 8080 |
-| Room Service | Quan ly thong tin phong hoc | Node.js, Express, TypeScript | 5001 |
-| Schedule Service | Quan ly availability, reserve, release slot | Node.js, Express, TypeScript | 5002 |
-| Booking Service | Quan ly vong doi booking va dieu phoi nghiep vu | Node.js, Express, TypeScript | 5003 |
+| Frontend | Giao diện tra cứu phòng, tạo booking, xử lý admin | HTML/CSS/JS, Bootstrap | 3000 |
+| Gateway | Điểm vào duy nhất, reverse proxy request đến backend | Nginx | 8080 |
+| Room Service | Quản lý thông tin phòng học | Node.js, Express, TypeScript | 5001 |
+| Schedule Service | Quản lý availability, reserve, release slot | Node.js, Express, TypeScript | 5002 |
+| Booking Service | Quản lý vòng đời booking và điều phối nghiệp vụ | Node.js, Express, TypeScript | 5003 |
 | Databases | Database per service | PostgreSQL | 5433-5435 |
 
 ## Quick Start
@@ -60,7 +64,7 @@ graph LR
 docker compose up --build
 ```
 
-Kiem tra nhanh:
+Kiểm tra nhanh:
 
 ```bash
 curl http://localhost:8080/health
@@ -69,13 +73,13 @@ curl http://localhost:5002/health
 curl http://localhost:5003/health
 ```
 
-Frontend chay tai:
+Frontend chạy tại:
 
 ```text
 http://localhost:3000
 ```
 
-Gateway chay tai:
+Gateway chạy tại:
 
 ```text
 http://localhost:8080
@@ -93,7 +97,7 @@ http://localhost:8080
 
 | Document | Description |
 |----------|-------------|
-| `GETTING_STARTED.md` | Setup va workflow |
-| `docs/analysis-and-design.md` | Phan tich va thiet ke |
-| `docs/architecture.md` | Kien truc he thong |
+| `GETTING_STARTED.md` | Setup và workflow |
+| `docs/analysis-and-design.md` | Phân tích và thiết kế |
+| `docs/architecture.md` | Kiến trúc hệ thống |
 | `docs/api-specs/` | OpenAPI 3.0 specifications |
